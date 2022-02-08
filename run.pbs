@@ -1,0 +1,8 @@
+#!/bin/sh
+#$ -cwd
+#PBS -q gpu
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/bt2/18CS10069/anaconda3/lib/
+export PATH="/home/bt2/18CS10069/anaconda3/envs/BTP/bin:$PATH"
+
+python bert_run.py

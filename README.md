@@ -1,0 +1,2 @@
+- Download glove.840B.300d, SICK, SNLI (train, dev, test, test-hard, test-lexical), Multimodal Entailment Dataset.  
+- Create a directory bert-base-uncased, and store the model's .bin, config.json, and vocab.txt file.

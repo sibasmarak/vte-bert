@@ -8,6 +8,7 @@ from collections import OrderedDict, defaultdict
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer
 from prettytable import PrettyTable
+from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score
 
 from data import BERTDataset, VisualBERTDataset
 from models import ConcatBERTModel, VanillaBERTModel, VisualConcatBERTModel
@@ -23,7 +24,7 @@ torch.cuda.manual_seed(seed)
 lr = 1e-5
 epochs = 30
 num_labels = 3
-batch_size = 256
+batch_size = 32
 print_freq = 500
 hidden_size = 512
 bert = 'bert' # bert, roberta etc.
@@ -32,8 +33,8 @@ vision_model = 'resnet50' # vgg16_bn, resnet50
 # NOTE: necessary for eval
 te = 'te' # te, vte etc.
 bert_type = 'tiny' # tiny, small, base, pretrained etc.
-modeling = 'vanilla' # vanilla, concat, visualconcat
-modelpath = '.models/vanilla/bert-tiny/epoch_10.ckpt'
+modeling = 'concat' # vanilla, concat, visualconcat
+modelpath = '/home/bt2/18CS10069/btp2/src/.models256_8_1/concat/bert-tiny/epoch_3.ckpt'
 
 print(te, bert, bert_type, vision_model, modeling)
 
@@ -154,9 +155,11 @@ with torch.no_grad():
     for i, dataloader in enumerate([dev_dataloader, test_dataloader, test_hard_dataloader, test_lexical_dataloader]):
         print(f"\n+++++ Evaluate on {index_loader_mapper[i]} set ...")
 
-        tl, correct, total = 0, 0, 0
+        tl, correct, total, ACC, F1 = 0, 0, 0, 0, 0
         labelwise_correct = defaultdict(lambda : 0)
         labelwise_total = defaultdict(lambda : 0)
+
+        y_true, y_pred = [], []
         
         for _, batch in enumerate(dataloader):
             labels = batch['labels'].to(device)
@@ -177,6 +180,9 @@ with torch.no_grad():
             correct += (predicted == labels).sum().item()
             total += len(labels)
 
+            y_true.extend(labels.detach().cpu().numpy())
+            y_pred.extend(predicted.detach().cpu().numpy())
+
             labelwise_correct[label2id['entailment']] += torch.logical_and(torch.eq(predicted, label2id['entailment']), 
                                                                     torch.eq(labels, label2id['entailment'])).sum().item()
             labelwise_correct[label2id['neutral']] += torch.logical_and(torch.eq(predicted, label2id['neutral']),
@@ -188,8 +194,9 @@ with torch.no_grad():
             labelwise_total[label2id['neutral']] += (labels == label2id['neutral']).sum().item()
             labelwise_total[label2id['contradiction']] += (labels == label2id['contradiction']).sum().item()
 
-
         accuracy = correct/total * 100
+        ACC = balanced_accuracy_score(y_true, y_pred)
+
         print(f"Test loss: {tl/len(dataloader):.4f}")
         table = PrettyTable()
         table.field_names = [f"label name", "accuracy"]
@@ -197,4 +204,13 @@ with torch.no_grad():
             acc = np.round(labelwise_correct[value]/labelwise_total[value] * 100, decimals=4)
             table.add_row([label, acc])
         table.add_row(['total', np.round(accuracy, decimals=4)])
+        table.add_row(['balanced_total', np.round(ACC * 100, decimals=4)])
         print(table)
+
+        # uncomment the following to obtain the data distribution
+        # table = PrettyTable()
+        # table.field_names = [f"label name", "total"]
+        # for label, value in label2id.items():
+        #     number = labelwise_total[value]
+        #     table.add_row([label, number])
+        # print(table)

@@ -3,4 +3,4 @@ metadata.index
 run.pbs.*
 .vector_cache/
 .data/
-.*models/
+.*models*/

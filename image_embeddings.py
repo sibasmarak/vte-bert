@@ -49,6 +49,6 @@ def create_img_embeddings(data_dir, split='dev', modelname = 'vgg16_bn'):
 
 
 data_dir = '../data/vte'
-split = 'train'
+split = 'test_lexical'
 modelname = 'resnet50'
 create_img_embeddings(data_dir, split=split, modelname=modelname)

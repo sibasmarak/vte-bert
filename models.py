@@ -14,7 +14,9 @@ class VanillaBERTModel(nn.Module):
 		self.output_size = output_size
 		self.dropout_ratio = dropout_ratio
 
-		if self.bert_type == 'tiny':
+		if self.bert_type == 'tinier':
+			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=64, intermediate_size=128, num_attention_heads=2, output_attentions=True) # Bert tinier config
+		elif self.bert_type == 'tiny':
 			self.config = BertConfig(num_hidden_layers=4, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tiny config
 		elif self.bert_type == 'small':
 			self.config = BertConfig(num_hidden_layers=6, max_position_embeddings=512, intermediate_size=1024, num_attention_heads=4, output_attentions=True) # Bert small config
@@ -60,7 +62,9 @@ class ConcatBERTModel(nn.Module):
 		self.dropout_ratio = dropout_ratio
 		self.config = None
 
-		if self.bert_type == 'tiny':
+		if self.bert_type == 'tinier':
+			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=64, intermediate_size=128, num_attention_heads=2, output_attentions=True) # Bert tinier config
+		elif self.bert_type == 'tiny':
 			self.config = BertConfig(num_hidden_layers=4, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tiny config
 		elif self.bert_type == 'small':
 			self.config = BertConfig(num_hidden_layers=6, max_position_embeddings=512, intermediate_size=1024, num_attention_heads=4, output_attentions=True) # Bert small config
@@ -249,6 +253,8 @@ class VisualConcatBERTModel(nn.Module):
 		self.projection = nn.Linear(image_embedding_size, hidden_size)
 		self.ph_projection = nn.Linear(output_size, hidden_size)
 
+		if self.bert_type == 'tinier':
+			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=64, intermediate_size=128, num_attention_heads=2, output_attentions=True) # Bert tinier config
 		if self.bert_type == 'tiny':
 			self.config = BertConfig(num_hidden_layers=4, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tiny config
 		elif self.bert_type == 'small':

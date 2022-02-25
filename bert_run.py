@@ -24,28 +24,25 @@ torch.cuda.manual_seed(seed)
 # torch.backends.cudnn.deterministic = True
 
 # hyperparameters
-lr = 1e-5
 epochs = 30
 num_labels = 3
-batch_size = 256
 print_freq = 500
 hidden_size = 512
-te = 'te' # te, vte etc.
-model_path = 'models' # models, grounding-models etc.
+
+lr = 1e-5
+wd = 5e-3
+batch_size = 32
+te = 'vte' # te, vte etc.
+model_path = 'grounding-models32_1' # models, grounding-models etc.
 bert = 'bert' # bert, roberta etc.
-bert_type = 'pretrained' # tiny, small, base, pretrained etc.
+bert_type = 'tiny' # tinier, tiny, small, base, pretrained etc.
 vision_model = 'resnet50' # vgg16_bn, resnet50
-modeling = 'concat' # vanilla, concat, visualconcat
+modeling = 'visualconcat' # vanilla, concat, visualconcat
 
 print(te, model_path, bert, bert_type, vision_model, modeling)
+hyperparameter = {'lr': lr, 'epochs': epochs, 'hidden_size': hidden_size, 'batch_size': batch_size, 'weight_decay': wd}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# load the data
-dev_filename = '../vsnli/VSNLI_1.0_dev.tsv'
-train_filename = '../vsnli/VSNLI_1.0_train.tsv'
-test_filename = '../vsnli/VSNLI_1.0_test.tsv'
-test_hard_filename = '../vsnli/VSNLI_1.0_test_hard.tsv'
 
 with open('metadata' + ".index", mode="rb") as out_file:
 	metadata = pickle.load(out_file)
@@ -119,7 +116,7 @@ if torch.cuda.device_count() > 0:
 	model = nn.DataParallel(model)
 
 model = model.to(device)
-optimizer = torch.optim.Adam(params=model.parameters(), lr=lr)
+optimizer = torch.optim.Adam(params=model.parameters(), lr=lr, weight_decay=wd)
 criterion = nn.CrossEntropyLoss()
 
 stop_criterion = 0
@@ -165,14 +162,13 @@ for epoch in range(epochs):
 	print(f"Time taken for training: {(end - start) // 60} m {(end - start) % 60:.4f} s")
 
 	# save the checkpoint
-	# TODO: Add later an option key to store the hyperparameters in ckpt
 	save_dir = f'.{model_path}/{modeling}/{bert}-{bert_type}/'
 	save_path = save_dir + f'epoch_{epoch+1}.ckpt'
 
 	if not os.path.exists(save_dir):
 		os.makedirs(save_dir)
 	print("+++++ Saving checkpoint ...")
-	torch.save({'weights': model.state_dict(), 'epoch': epoch+1}, save_path)
+	torch.save({'weights': model.state_dict(), 'epoch': epoch+1, 'hyperparameter': hyperparameter}, save_path)
 			
 	# Evaluate on dev dataset
 	with torch.no_grad():

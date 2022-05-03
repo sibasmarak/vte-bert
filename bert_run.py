@@ -21,7 +21,7 @@ rn.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
-# torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.deterministic = True
 
 # hyperparameters
 epochs = 30
@@ -29,17 +29,19 @@ num_labels = 3
 print_freq = 500
 hidden_size = 512
 
-lr = 1e-5
-wd = 5e-3
-batch_size = 32
+lr = 1e-4
+batch_size = 256
+wd = 0
+
 te = 'vte' # te, vte etc.
-model_path = 'grounding-models32_1' # models, grounding-models etc.
+model_path = 'vtepi' # models, grounding-models etc.
 bert = 'bert' # bert, roberta etc.
-bert_type = 'tiny' # tinier, tiny, small, base, pretrained etc.
-vision_model = 'resnet50' # vgg16_bn, resnet50
+bert_type = 'tinier' # tinier, tiny, small, base, pretrained etc.
+vision_model = 'RN50' # vgg16_bn, resnet50, RN50
 modeling = 'visualconcat' # vanilla, concat, visualconcat
 
 print(te, model_path, bert, bert_type, vision_model, modeling)
+# {model_path}/{vision_model}-{modeling}/{bert}-{bert_type}/
 hyperparameter = {'lr': lr, 'epochs': epochs, 'hidden_size': hidden_size, 'batch_size': batch_size, 'weight_decay': wd}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -56,13 +58,11 @@ num_labels = len(label2id)
 with open(f'../data/{te}/' + "dev.pkl", mode="rb") as out_file: dev = pickle.load(out_file)
 with open(f'../data/{te}/' + "train.pkl", mode="rb") as out_file: train = pickle.load(out_file)
 with open(f'../data/{te}/' + "test.pkl", mode="rb") as out_file: test = pickle.load(out_file)
-with open(f'../data/{te}/' + "test_hard.pkl", mode="rb") as out_file: test_hard = pickle.load(out_file)
 
 if te == 'vte':
 	with open(f'../data/{te}/{vision_model}/' + "dev.npy", mode="rb") as out_file: dev_image_feats = np.load(out_file)
 	with open(f'../data/{te}/{vision_model}/' + "train.npy", mode="rb") as out_file: train_image_feats = np.load(out_file)
 	with open(f'../data/{te}/{vision_model}/' + "test.npy", mode="rb") as out_file: test_image_feats = np.load(out_file)
-	with open(f'../data/{te}/{vision_model}/' + "test_hard.npy", mode="rb") as out_file: test_hard_image_feats = np.load(out_file)
 
 
 print("\n++++++++++ DATA STATISTICS ++++++++++")
@@ -70,7 +70,6 @@ print(f"Number of labels: {num_labels}")
 print(f"Dev size: {len(dev['labels'])}")
 print(f"Train size: {len(train['labels'])}")
 print(f"Test size: {len(test['labels'])}")
-print(f"Test_hard size: {len(test_hard['labels'])}")
 print("++++++++++ DATA STATISTICS ++++++++++\n")
 
 if te == 'te':
@@ -143,7 +142,7 @@ for epoch in range(epochs):
 			out = model(premises, hypotheses)
 		elif te == 'vte':
 			features = batch['features'].to(device)
-			out = model(premises, hypotheses, features)
+			out = model(premises, hypotheses, features.float())
 
 		loss = criterion(out, labels)
 
@@ -162,7 +161,7 @@ for epoch in range(epochs):
 	print(f"Time taken for training: {(end - start) // 60} m {(end - start) % 60:.4f} s")
 
 	# save the checkpoint
-	save_dir = f'.{model_path}/{modeling}/{bert}-{bert_type}/'
+	save_dir = f'.{model_path}/{vision_model}-{modeling}/{bert}-{bert_type}/lr_{lr}_bs_{batch_size}_wd_{wd}/'
 	save_path = save_dir + f'epoch_{epoch+1}.ckpt'
 
 	if not os.path.exists(save_dir):
@@ -182,7 +181,7 @@ for epoch in range(epochs):
 				out = model(premises, hypotheses)
 			elif te == 'vte':
 				features = batch['features'].to(device)
-				out = model(premises, hypotheses, features)
+				out = model(premises, hypotheses, features.float())
 
 			loss = criterion(out, labels)
 			tl += loss.item()
@@ -217,7 +216,7 @@ for epoch in range(epochs):
 				out = model(premises, hypotheses)
 			elif te == 'vte':
 				features = batch['features'].to(device)
-				out = model(premises, hypotheses, features)
+				out = model(premises, hypotheses, features.float())
 
 			loss = criterion(out, labels)
 			tl += loss.item()

@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
 
 
 def load_glove(filename, max_vocab, embedding_size):
@@ -33,8 +33,8 @@ def load_glove(filename, max_vocab, embedding_size):
     return embeddings, token2id, id2token
 
 
-def glove_embeddings_initializer(embeddings):
-    def _initializer(shape, dtype=tf.float32, partition_info=None):
-        return embeddings
+# def glove_embeddings_initializer(embeddings):
+#     def _initializer(shape, dtype=tf.float32, partition_info=None):
+#         return embeddings
 
-    return _initializer
+#     return _initializer

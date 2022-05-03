@@ -1,4 +1,4 @@
-import torch, time
+import clip, torch, time, timm
 import torch.nn as nn
 from collections import OrderedDict
 
@@ -16,6 +16,8 @@ class VanillaBERTModel(nn.Module):
 
 		if self.bert_type == 'tinier':
 			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=64, intermediate_size=128, num_attention_heads=2, output_attentions=True) # Bert tinier config
+		elif self.bert_type == 'tiny_middle':
+			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tinier config
 		elif self.bert_type == 'tiny':
 			self.config = BertConfig(num_hidden_layers=4, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tiny config
 		elif self.bert_type == 'small':
@@ -64,6 +66,8 @@ class ConcatBERTModel(nn.Module):
 
 		if self.bert_type == 'tinier':
 			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=64, intermediate_size=128, num_attention_heads=2, output_attentions=True) # Bert tinier config
+		elif self.bert_type == 'tiny_middle':
+			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tinier config
 		elif self.bert_type == 'tiny':
 			self.config = BertConfig(num_hidden_layers=4, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tiny config
 		elif self.bert_type == 'small':
@@ -255,7 +259,9 @@ class VisualConcatBERTModel(nn.Module):
 
 		if self.bert_type == 'tinier':
 			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=64, intermediate_size=128, num_attention_heads=2, output_attentions=True) # Bert tinier config
-		if self.bert_type == 'tiny':
+		elif self.bert_type == 'tiny_middle':
+			self.config = BertConfig(num_hidden_layers=2, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tinier config
+		elif self.bert_type == 'tiny':
 			self.config = BertConfig(num_hidden_layers=4, max_position_embeddings=128, intermediate_size=256, num_attention_heads=4, output_attentions=True) # Bert tiny config
 		elif self.bert_type == 'small':
 			self.config = BertConfig(num_hidden_layers=6, max_position_embeddings=512, intermediate_size=1024, num_attention_heads=4, output_attentions=True) # Bert small config
@@ -301,3 +307,59 @@ class VisualConcatBERTModel(nn.Module):
 		out = torch.cat((encoding_prem, encoding_hyp), dim=1)
 		out = self.fc(out)
 		return out
+
+class MultiModalModel(nn.Module):
+	def __init__(self, vision_modelname, device, modeling, lm_options, use_timm=False):
+		super(MultiModalModel, self).__init__()
+		# timm or clip
+		self.use_timm = use_timm
+
+		# obtain CLIP-vision model
+		self.vision_modelname = vision_modelname
+		self.device = device
+
+		if self.use_timm:
+			self.vision_model = timm.create_model(self.vision_modelname, pretrained=True)
+			self.vision_model.reset_classifier(0)
+			self.vision_model = self.vision_model.to(self.device)
+		else:
+			self.vision_model, _ = clip.load(self.vision_modelname, device=self.device)
+			self.vision_model.float()
+
+		# obtain language model
+		self.modeling = modeling
+		self.lm_options = lm_options 
+		if self.modeling == 'vanilla':
+			self.language_model = VanillaBERTModel(self.lm_options['num_labels'], 
+													self.lm_options['hidden_size'], 
+													bert_type=self.lm_options['bert_type'])
+		elif self.modeling == 'concat':
+			self.language_model = ConcatBERTModel(self.lm_options['num_labels'], 
+													self.lm_options['hidden_size'], 
+													bert_type=self.lm_options['bert_type'])
+		elif self.modeling == 'visualconcat':
+			self.language_model = VisualConcatBERTModel(self.lm_options['num_labels'], 
+															self.lm_options['hidden_size'], 
+															bert_type=self.lm_options['bert_type'], 
+															image_embedding_size=self.lm_options['image_embedding_size'])
+
+	def forward(self, batch):
+		if self.modeling == 'vanilla' or self.modeling == 'concat':
+			out = self.language_model(batch['encoded_premises'].to(self.device), batch['encoded_hypotheses'].to(self.device))
+
+		elif self.modeling == 'visualconcat':
+			# batch contains images -- obtain image features
+			with torch.no_grad():
+				if self.use_timm:
+					features = self.vision_model(batch['ims'].to(self.device))
+				else:
+					features = self.vision_model.encode_image(batch['ims'].to(self.device))
+
+			features = features/torch.linalg.norm(features, ord=2, dim=1, keepdim=True)
+
+			# call forward for language model
+			out = self.language_model(batch['encoded_premises'].to(self.device), batch['encoded_hypotheses'].to(self.device), features)
+
+		return out
+
+

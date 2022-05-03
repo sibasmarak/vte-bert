@@ -1,5 +1,6 @@
 import torch, jsonlines
 import pickle
+import pandas as pd, os 
 import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
@@ -7,8 +8,122 @@ from collections import OrderedDict
 from dataset import load_te_dataset, load_vte_dataset
 from embeddings import load_glove
 
+from sklearn.model_selection import train_test_split
+
 torch.manual_seed(0)
 
+# Google Multi-Modal
+label_map = {
+        "Contradictory": 2, # contradiction
+        "Implies": 1, # Entailment
+        "NoEntailment": 0 # NoEntailment
+    }
+
+df = pd.read_csv("https://github.com/sayakpaul/Multimodal-Entailment-Baseline/raw/main/csvs/tweets.csv")
+images_one_paths = []
+images_two_paths = []
+
+for idx in range(len(df)):
+    current_row = df.iloc[idx]
+    id_1 = current_row["id_1"]
+    id_2 = current_row["id_2"]
+    extentsion_one = current_row["image_1"].split(".") [-1]
+    extentsion_two = current_row["image_2"].split(".") [-1]
+    
+    image_one_path = os.path.join("tweet_images", str(id_1) + f".{extentsion_one}")
+    image_two_path = os.path.join("tweet_images", str(id_2) + f".{extentsion_two}")
+
+    images_one_paths.append(image_one_path)
+    images_two_paths.append(image_two_path)
+
+df["image_1_path"] = images_one_paths
+df["image_2_path"] = images_two_paths
+df["label_idx"] = df["label"].apply(lambda x: label_map[x])
+
+train_df, test_df = train_test_split(df, test_size=0.1, stratify=df["label"].values, random_state=0)
+train_df, val_df = train_test_split(train_df, test_size=0.05, stratify=train_df["label"].values, random_state=0)
+
+print(f"Total training examples: {len(train_df)}")
+print(f"Total validation examples: {len(val_df)}")
+print(f"Total test examples: {len(test_df)}")
+
+# NOTE: Dumping TE dataset
+# dev set
+with open('../data/te/tweet/' + "dev.pkl", mode="wb") as out_file:
+    pickle.dump(
+        {
+            "labels": val_df['label_idx'],
+            "original_premises": val_df['text_1'],
+            "original_hypotheses": val_df['text_2']
+        },
+        out_file
+    )
+
+with open('../data/vte/tweet/' + "dev.pkl", mode="wb") as out_file:
+    pickle.dump(
+        {
+            "image_names": val_df['image_1_path'],
+            "labels": val_df['label_idx'],
+            "original_premises": val_df['text_1'],
+            "original_hypotheses": val_df['text_2']
+        },
+        out_file
+    )
+
+# train set
+with open('../data/te/tweet/' + "train.pkl", mode="wb") as out_file:
+    pickle.dump(
+        {
+            "labels": train_df['label_idx'],
+            "original_premises": train_df['text_1'],
+            "original_hypotheses": train_df['text_2']
+        },
+        out_file
+    )
+
+with open('../data/vte/tweet/' + "train.pkl", mode="wb") as out_file:
+    pickle.dump(
+        {
+            "image_names": train_df['image_1_path'],
+            "labels": train_df['label_idx'],
+            "original_premises": train_df['text_1'],
+            "original_hypotheses": train_df['text_2']
+        },
+        out_file
+    )
+
+# test set
+with open('../data/te/tweet/' + "test.pkl", mode="wb") as out_file:
+    pickle.dump(
+        {
+            "labels": test_df['label_idx'],
+            "original_premises": test_df['text_1'],
+            "original_hypotheses": test_df['text_2']
+        },
+        out_file
+    )
+
+with open('../data/vte/tweet/' + "test.pkl", mode="wb") as out_file:
+    pickle.dump(
+        {
+            "image_names": test_df['image_1_path'],
+            "labels": test_df['label_idx'],
+            "original_premises": test_df['text_1'],
+            "original_hypotheses": test_df['text_2']
+        },
+        out_file
+    )
+exit(0)
+
+
+
+
+
+
+
+
+
+# SNLI
 # load the data
 glove_filename = '../glove.840B.300d.txt'
 dev_filename = '.data/snli/snli_1.0/snli_1.0_dev.jsonl' # '../vsnli/VSNLI_1.0_dev.tsv'
@@ -55,14 +170,14 @@ num_labels = len(label2id)
 print(f"Number of labels: {num_labels}")     
 
 # # NOTE: Creating TE dataset
-# dev_labels, dev_padded_premises, dev_padded_hypotheses, \
-#             dev_original_premises, dev_original_hypotheses = load_te_dataset(dev_filename, token2id, label2id)
-# train_labels, train_padded_premises, train_padded_hypotheses, \
-#             train_original_premises, train_original_hypotheses = load_te_dataset(train_filename, token2id, label2id)
-# test_labels, test_padded_premises, test_padded_hypotheses, \
-#             test_original_premises, test_original_hypotheses = load_te_dataset(test_filename, token2id, label2id)
-# test_hard_labels, test_hard_padded_premises, test_hard_padded_hypotheses, \
-#             test_hard_original_premises, test_hard_original_hypotheses = load_te_dataset(test_hard_filename, token2id, label2id)
+dev_labels, dev_padded_premises, dev_padded_hypotheses, \
+            dev_original_premises, dev_original_hypotheses = load_te_dataset(dev_filename, token2id, label2id)
+train_labels, train_padded_premises, train_padded_hypotheses, \
+            train_original_premises, train_original_hypotheses = load_te_dataset(train_filename, token2id, label2id)
+test_labels, test_padded_premises, test_padded_hypotheses, \
+            test_original_premises, test_original_hypotheses = load_te_dataset(test_filename, token2id, label2id)
+test_hard_labels, test_hard_padded_premises, test_hard_padded_hypotheses, \
+            test_hard_original_premises, test_hard_original_hypotheses = load_te_dataset(test_hard_filename, token2id, label2id)
 
 # NOTE: Creating VTE dataset
 dev_labels, dev_padded_premises, dev_padded_hypotheses, \

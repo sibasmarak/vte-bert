@@ -4,3 +4,4 @@ run.pbs.*
 .vector_cache/
 .data/
 .*models*/
+.*te*/

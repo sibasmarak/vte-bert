@@ -28,14 +28,13 @@ batch_size = 32
 print_freq = 500
 hidden_size = 512
 bert = 'bert' # bert, roberta etc.
-vision_model = 'resnet50' # vgg16_bn, resnet50
+vision_model = 'RN50' # vgg16_bn, resnet50, RN50
 
 # NOTE: necessary for eval
-te = 'te' # te, vte etc.
-bert_type = 'tiny' # tiny, small, base, pretrained etc.
-modeling = 'concat' # vanilla, concat, visualconcat
-modelpath = '/home/bt2/18CS10069/btp2/src/.models256_8_1/concat/bert-tiny/epoch_3.ckpt'
-
+te = 'vte' # te, vte etc.
+bert_type = 'tinier' # tiny, small, base, pretrained etc.
+modeling = 'visualconcat' # vanilla, concat, visualconcat
+modelpath = '/home/bt2/18CS10069/btp2/src/.vtehi/RN50-visualconcat/bert-tinier/lr_5e-06_bs_32_wd_0/epoch_20.ckpt'
 print(te, bert, bert_type, vision_model, modeling)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -80,7 +79,7 @@ elif te == 'vte':
 	test_dataset = VisualBERTDataset(test['original_premises'], test['original_hypotheses'], test['labels'], test['image_names'], test_image_feats)
 	test_hard_dataset = VisualBERTDataset(test_hard['original_premises'], test_hard['original_hypotheses'], test_hard['labels'], test_hard['image_names'], test_hard_image_feats)
 	test_lexical_dataset = VisualBERTDataset(test_lexical['original_premises'], test_lexical['original_hypotheses'], test_lexical['labels'], test_lexical['image_names'], test_lexical_image_feats)
-	image_embedding_size = test_image_feats.squeeze().shape[1]
+	image_embedding_size = dev_image_feats.squeeze().shape[1]
 	print(f'+++++ Image embedding size from {vision_model}: {image_embedding_size}')
 
 test_hard_dataloader = DataLoader(
@@ -152,6 +151,7 @@ model.eval()
 index_loader_mapper = {0: 'dev', 1:'test', 2: 'test_hard', 3: 'test_lexical'}
 with torch.no_grad():
 
+    # for i, dataloader in enumerate([dev_dataloader]):
     for i, dataloader in enumerate([dev_dataloader, test_dataloader, test_hard_dataloader, test_lexical_dataloader]):
         print(f"\n+++++ Evaluate on {index_loader_mapper[i]} set ...")
 
@@ -170,7 +170,7 @@ with torch.no_grad():
                 out = model(premises, hypotheses)
             elif te == 'vte':
                 features = batch['features'].to(device)
-                out = model(premises, hypotheses, features)
+                out = model(premises, hypotheses, features.float())
 
             loss = criterion(out, labels)
             tl += loss.item()

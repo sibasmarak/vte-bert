@@ -1,2 +1,5 @@
-- Download glove.840B.300d, SICK, SNLI (train, dev, test, test-hard, test-lexical), Multimodal Entailment Dataset.  
-- Create a directory bert-base-uncased, and store the model's .bin, config.json, and vocab.txt file.
+# Code to Run
+- to preprocess the datasets: `python preprocessing.py`
+- to obtain the image embeddings: `python image_embeddings.py`
+- to train BERT models: `python bert_run.py`
+- to evaluate BERT models: `python evaluate.py`
